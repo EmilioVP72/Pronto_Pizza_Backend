@@ -81,6 +81,15 @@ class DespachoService:
         return result_despacho.scalar_one()
 
     @staticmethod
+    async def listar(db: AsyncSession, current_user: Usuario) -> list[Despacho]:
+        result = await db.execute(
+            select(Despacho)
+            .options(selectinload(Despacho.detalles))
+            .order_by(Despacho.creado_en.desc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def completar_despacho(
         db: AsyncSession,
         despacho_id: UUID,

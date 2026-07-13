@@ -155,4 +155,48 @@ class InventarioService:
             })
         return out
 
+    @staticmethod
+    async def listar_movimientos(db: AsyncSession, skip: int = 0, limit: int = 100):
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(MovimientoInventario)
+            .options(selectinload(MovimientoInventario.tipo_movimiento))
+            .order_by(MovimientoInventario.creado_en.desc())
+            .offset(skip).limit(limit)
+        )
+        return list(result.scalars().all())
 
+    @staticmethod
+    async def listar_productos_bajo_minimo(db: AsyncSession, skip: int = 0, limit: int = 100):
+        from sqlalchemy import select, func
+        from app.models.catalogo import Producto, ProductoSucursal
+        from app.models.inventario import SaldoInventario
+        
+        query = select(
+            Producto.id.label("producto_id"),
+            Producto.codigo_interno.label("producto_codigo"),
+            Producto.nombre.label("producto_nombre"),
+            func.coalesce(func.sum(SaldoInventario.cantidad), 0).label("cantidad_actual"),
+            func.coalesce(func.max(ProductoSucursal.punto_reorden), 0).label("punto_reorden")
+        ).outerjoin(
+            ProductoSucursal, ProductoSucursal.producto_id == Producto.id
+        ).outerjoin(
+            SaldoInventario, SaldoInventario.producto_id == Producto.id
+        ).group_by(
+            Producto.id, Producto.codigo_interno, Producto.nombre
+        ).having(
+            func.coalesce(func.sum(SaldoInventario.cantidad), 0) <= func.coalesce(func.max(ProductoSucursal.punto_reorden), 0)
+        ).offset(skip).limit(limit)
+
+        result = await db.execute(query)
+        rows = result.all()
+        return [
+            {
+                "producto_id": str(r.producto_id),
+                "producto_codigo": r.producto_codigo,
+                "producto_nombre": r.producto_nombre,
+                "cantidad_actual": str(r.cantidad_actual),
+                "punto_reorden": str(r.punto_reorden)
+            }
+            for r in rows if r.punto_reorden > 0 and r.cantidad_actual <= r.punto_reorden
+        ]

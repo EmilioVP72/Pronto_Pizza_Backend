@@ -13,10 +13,11 @@ class RequisicionService:
 
     @staticmethod
     async def listar(db: AsyncSession, current_user: Usuario) -> list[Requisicion]:
-        # Para el futuro: si es encargado_sucursal, filtrar por su sucursal_id
-        # if current_user.rol.nombre == "encargado_sucursal":
-        #    ...
-        result = await db.execute(select(Requisicion))
+        result = await db.execute(
+            select(Requisicion)
+            .options(selectinload(Requisicion.detalles))
+            .order_by(Requisicion.creado_en.desc())
+        )
         return list(result.scalars().all())
 
     @staticmethod

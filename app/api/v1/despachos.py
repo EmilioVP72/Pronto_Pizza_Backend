@@ -8,7 +8,19 @@ from app.models.organizacion import Usuario
 from app.schemas.despachos import DespachoCreate, DespachoRead
 from app.services.despacho_service import DespachoService
 
+from app.api.v1.utils import paginate_response
+
 router = APIRouter(prefix="/despachos", tags=["Despachos"])
+
+@router.get("/", response_model=dict)
+async def listar_despachos(
+    page: int = 1,
+    size: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    items = await DespachoService.listar(db, current_user)
+    return paginate_response([DespachoRead.model_validate(i).model_dump(mode="json") for i in items], page, size)
 
 @router.post("/", response_model=DespachoRead, status_code=status.HTTP_201_CREATED)
 async def crear_despacho(

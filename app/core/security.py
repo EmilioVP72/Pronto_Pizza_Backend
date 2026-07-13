@@ -16,11 +16,15 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> Usuario:
-    if token == "dummy-dev-token" and settings.app_env == "development":
+    if token.startswith("dummy-dev-token") and settings.app_env == "development":
+        email = "admin@prontopizza.com"
+        if "|" in token:
+            email = token.split("|")[1]
+            
         result = await db.execute(
             select(Usuario)
             .options(selectinload(Usuario.rol), selectinload(Usuario.sucursal))
-            .where(Usuario.email == "admin@prontopizza.com")
+            .where(Usuario.email == email)
         )
         user = result.scalar_one_or_none()
         if user:

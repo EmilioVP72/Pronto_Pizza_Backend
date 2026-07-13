@@ -40,9 +40,14 @@ async def listar_roles(
     return await OrganizacionService.listar_roles(db)
 
 
-@router.get("/usuarios", response_model=list[UsuarioRead])
+from app.api.v1.utils import paginate_response
+
+@router.get("/usuarios", response_model=dict)
 async def listar_usuarios(
+    page: int = 1,
+    size: int = 20,
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(require_role("administrador")),
 ):
-    return await OrganizacionService.listar_usuarios(db)
+    items = await OrganizacionService.listar_usuarios(db)
+    return paginate_response([UsuarioRead.model_validate(i).model_dump(mode="json") for i in items], page, size)

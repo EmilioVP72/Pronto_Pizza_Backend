@@ -8,14 +8,19 @@ from app.models.organizacion import Usuario
 from app.schemas.requisiciones import RequisicionCreate, RequisicionRead, RequisicionUpdate
 from app.services.requisicion_service import RequisicionService
 
+from app.api.v1.utils import paginate_response
+
 router = APIRouter(prefix="/requisiciones", tags=["Requisiciones"])
 
-@router.get("/", response_model=list[RequisicionRead])
+@router.get("/", response_model=dict)
 async def listar_requisiciones(
+    page: int = 1,
+    size: int = 20,
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
-    return await RequisicionService.listar(db, current_user)
+    items = await RequisicionService.listar(db, current_user)
+    return paginate_response([RequisicionRead.model_validate(i).model_dump(mode="json") for i in items], page, size)
 
 @router.post("/", response_model=RequisicionRead, status_code=status.HTTP_201_CREATED)
 async def crear_requisicion(

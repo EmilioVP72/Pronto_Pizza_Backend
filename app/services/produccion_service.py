@@ -59,6 +59,14 @@ class ProduccionService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def listar_ordenes(db: AsyncSession) -> list[OrdenProduccion]:
+        result = await db.execute(
+            select(OrdenProduccion)
+            .order_by(OrdenProduccion.creado_en.desc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def crear_orden_produccion(
         db: AsyncSession,
         data: OrdenProduccionCreate,
