@@ -42,6 +42,16 @@ class UsuarioBase(BaseModel):
     nombre_completo: str
     email: EmailStr
 
+class UsuarioCreate(UsuarioBase):
+    password: str
+
+class UsuarioUpdate(BaseModel):
+    sucursal_id: UUID | None = None
+    rol_id: int | None = None
+    nombre_completo: str | None = None
+    email: EmailStr | None = None
+    password: str | None = None
+
 class UsuarioRead(UsuarioBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

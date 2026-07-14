@@ -10,7 +10,8 @@ from app.schemas.organizacion import (
     SucursalRead,
     UsuarioRead,
     RolRead,
-    UsuarioCreate
+    UsuarioCreate,
+    UsuarioUpdate
 )
 from app.services.organizacion_service import OrganizacionService
 
@@ -23,6 +24,25 @@ async def crear_usuario(
     current_user: Usuario = Depends(require_role("administrador")),
 ):
     return await OrganizacionService.crear_usuario(db, data)
+
+
+@router.patch("/usuarios/{usuario_id}", response_model=UsuarioRead)
+async def actualizar_usuario(
+    usuario_id: UUID,
+    data: UsuarioUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("administrador")),
+):
+    return await OrganizacionService.actualizar_usuario(db, usuario_id, data)
+
+
+@router.delete("/usuarios/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def eliminar_usuario(
+    usuario_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("administrador")),
+):
+    await OrganizacionService.eliminar_usuario(db, usuario_id)
 
 
 @router.get("/usuarios/me", response_model=UsuarioRead)
