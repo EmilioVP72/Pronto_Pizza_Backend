@@ -3,10 +3,13 @@ from sqlalchemy import select
 from fastapi import HTTPException
 from datetime import datetime, timezone, date
 import uuid
+from uuid import UUID
+from decimal import Decimal
 
 from app.models.inventario import MovimientoInventario, TipoMovimiento, Lote
 from app.schemas.inventario import MovimientoInventarioBase, RecepcionCompraCreate, AjusteInventarioCreate
 from app.models.organizacion import Usuario
+from app.models.catalogo import ProductoSucursal
 
 
 class InventarioService:
@@ -31,6 +34,48 @@ class InventarioService:
         await db.refresh(movimiento)
         
         return movimiento
+
+    @staticmethod
+    async def actualizar_parametros(
+        db: AsyncSession,
+        producto_id: UUID,
+        sucursal_id: UUID,
+        punto_reorden: Decimal,
+        stock_maximo: Decimal,
+        current_user: Usuario
+    ):
+        result = await db.execute(
+            select(ProductoSucursal).where(
+                ProductoSucursal.producto_id == producto_id,
+                ProductoSucursal.sucursal_id == sucursal_id
+            )
+        )
+        ps = result.scalar_one_or_none()
+        if not ps:
+            ps = ProductoSucursal(
+                producto_id=producto_id,
+                sucursal_id=sucursal_id,
+                punto_reorden=punto_reorden,
+                stock_maximo=stock_maximo
+            )
+            db.add(ps)
+        else:
+            ps.punto_reorden = punto_reorden
+            ps.stock_maximo = stock_maximo
+
+        await db.flush()
+
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Inventario",
+            accion="ACTUALIZAR_PARAMETROS",
+            detalles={"producto_id": str(producto_id), "punto_reorden": str(punto_reorden), "stock_maximo": str(stock_maximo)}
+        )
+
+        await db.commit()
+        return ps
 
     @staticmethod
     async def recibir_compra(
@@ -177,7 +222,8 @@ class InventarioService:
             Producto.codigo_interno.label("producto_codigo"),
             Producto.nombre.label("producto_nombre"),
             func.coalesce(func.sum(SaldoInventario.cantidad), 0).label("cantidad_actual"),
-            func.coalesce(func.max(ProductoSucursal.punto_reorden), 0).label("punto_reorden")
+            func.coalesce(func.max(ProductoSucursal.punto_reorden), 0).label("punto_reorden"),
+            func.coalesce(func.max(ProductoSucursal.stock_maximo), 0).label("stock_maximo")
         ).outerjoin(
             ProductoSucursal, ProductoSucursal.producto_id == Producto.id
         ).outerjoin(
@@ -196,7 +242,8 @@ class InventarioService:
                 "producto_codigo": r.producto_codigo,
                 "producto_nombre": r.producto_nombre,
                 "cantidad_actual": str(r.cantidad_actual),
-                "punto_reorden": str(r.punto_reorden)
+                "punto_reorden": str(r.punto_reorden),
+                "stock_maximo": str(r.stock_maximo)
             }
             for r in rows if r.punto_reorden > 0 and r.cantidad_actual <= r.punto_reorden
         ]

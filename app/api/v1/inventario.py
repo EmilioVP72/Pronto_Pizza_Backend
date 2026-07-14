@@ -78,3 +78,26 @@ async def registrar_ajuste(
     Crea un movimiento de salida (si es negativo) o de entrada (si es positivo).
     """
     return await InventarioService.registrar_ajuste(db, data, current_user)
+
+from pydantic import BaseModel
+from decimal import Decimal
+from uuid import UUID
+
+class ParametrosUpdate(BaseModel):
+    producto_id: UUID
+    punto_reorden: Decimal
+    stock_maximo: Decimal
+
+@router.patch("/parametros")
+async def actualizar_parametros(
+    data: ParametrosUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("administrador", "contador")),
+):
+    """
+    Actualiza los parámetros de inventario para la sucursal del usuario actual.
+    """
+    ps = await InventarioService.actualizar_parametros(
+        db, data.producto_id, current_user.sucursal_id, data.punto_reorden, data.stock_maximo, current_user
+    )
+    return {"status": "ok", "producto_id": ps.producto_id, "punto_reorden": ps.punto_reorden, "stock_maximo": ps.stock_maximo}

@@ -60,3 +60,16 @@ class Usuario(Base):
 
     sucursal = relationship("Sucursal", back_populates="usuarios")
     rol = relationship("Rol", back_populates="usuarios")
+
+class BitacoraAccion(Base):
+    __tablename__ = "bitacora_acciones"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    usuario_id: Mapped[UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False, index=True)
+    modulo: Mapped[str] = mapped_column(String(50), nullable=False)
+    accion: Mapped[str] = mapped_column(String(100), nullable=False)
+    detalles: Mapped[str | None] = mapped_column(Text)
+    ip_address: Mapped[str | None] = mapped_column(String(50))
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    usuario = relationship("Usuario")

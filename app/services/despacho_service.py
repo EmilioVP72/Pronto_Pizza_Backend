@@ -70,6 +70,14 @@ class DespachoService:
                 notas=det.notas
             )
             db.add(detalle)
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Despachos",
+            accion="CREAR_DESPACHO",
+            detalles={"despacho_id": str(despacho.id)}
+        )
 
         await db.commit()
         
@@ -148,6 +156,15 @@ class DespachoService:
                 current_user
             )
             
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Despachos",
+            accion="COMPLETAR_DESPACHO",
+            detalles={"despacho_id": str(despacho_completo.id), "folio": despacho_completo.folio}
+        )
+
         await db.commit()
         
         result_final = await db.execute(

@@ -53,3 +53,19 @@ async def rechazar_requisicion(
     current_user: Usuario = Depends(require_role("almacenista", "administrador")),
 ):
     return await RequisicionService.transicionar_estado(db, requisicion_id, "rechazada", current_user)
+
+@router.patch("/{requisicion_id}/surtir", response_model=RequisicionRead)
+async def surtir_requisicion(
+    requisicion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("almacenista", "administrador")),
+):
+    return await RequisicionService.transicionar_estado(db, requisicion_id, "surtida", current_user)
+
+@router.patch("/{requisicion_id}/cerrar", response_model=RequisicionRead)
+async def cerrar_requisicion(
+    requisicion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("encargado_sucursal", "administrador")),
+):
+    return await RequisicionService.transicionar_estado(db, requisicion_id, "cerrada", current_user)

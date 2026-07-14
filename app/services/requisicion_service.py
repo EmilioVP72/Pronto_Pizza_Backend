@@ -46,6 +46,14 @@ class RequisicionService:
                 notas=det.notas
             )
             db.add(detalle)
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Requisiciones",
+            accion="CREAR_REQUISICION",
+            detalles={"requisicion_id": str(requisicion.id), "cantidad_productos": len(data.detalles)}
+        )
         
         await db.commit()
         
@@ -86,7 +94,7 @@ class RequisicionService:
                 "surtida": ["almacenista", "administrador"],
                 "rechazada": ["almacenista", "administrador"]
             },
-            "surtida": {"cerrada": ["almacenista", "administrador"]}
+            "surtida": {"cerrada": ["encargado_sucursal", "administrador"]}
         }
 
         if estatus_actual not in transiciones_validas or nuevo_estatus not in transiciones_validas[estatus_actual]:
@@ -102,6 +110,15 @@ class RequisicionService:
             from datetime import timezone
             requisicion.aprobado_por_id = current_user.id
             requisicion.fecha_aprobacion = datetime.now(timezone.utc)
+            
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Requisiciones",
+            accion=f"TRANSICION_{nuevo_estatus.upper()}",
+            detalles={"requisicion_id": str(requisicion.id), "folio": requisicion.folio}
+        )
 
         await db.commit()
         

@@ -86,8 +86,18 @@ class ProduccionService:
             notas=data.notas
         )
         db.add(orden)
+        await db.flush()
+        
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Produccion",
+            accion="CREAR_ORDEN_PRODUCCION",
+            detalles={"orden_id": str(orden.id), "folio": orden.folio, "tandas": orden.tandas}
+        )
+        
         await db.commit()
-        await db.refresh(orden)
         return orden
 
     @staticmethod
@@ -188,6 +198,15 @@ class ProduccionService:
         
         if data.notas:
             orden.notas = f"{orden.notas or ''} | {data.notas}"
+            
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Produccion",
+            accion="COMPLETAR_ORDEN_PRODUCCION",
+            detalles={"orden_id": str(orden.id), "folio": orden.folio, "lote": lote_generado.numero_lote, "cantidad_real": str(data.cantidad_real)}
+        )
             
         await db.commit()
         await db.refresh(orden)
