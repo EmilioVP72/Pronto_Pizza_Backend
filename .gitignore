@@ -1,1 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.python-version
+
+# Entorno
 /Context/*
+/venv/*
+.env
+
+# Dependencias
+uv.lock
