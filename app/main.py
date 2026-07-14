@@ -6,9 +6,7 @@ from app.api.v1.router import router as api_v1_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Logica de inicio si es necesaria
     yield
-    # Logica de apagado si es necesaria
 
 app = FastAPI(
     title="WMS Pronto Pizza API",

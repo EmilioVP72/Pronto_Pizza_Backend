@@ -70,6 +70,14 @@ class DespachoService:
                 notas=det.notas
             )
             db.add(detalle)
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Despachos",
+            accion="CREAR_DESPACHO",
+            detalles={"despacho_id": str(despacho.id)}
+        )
 
         await db.commit()
         
@@ -79,6 +87,15 @@ class DespachoService:
             .where(Despacho.id == despacho.id)
         )
         return result_despacho.scalar_one()
+
+    @staticmethod
+    async def listar(db: AsyncSession, current_user: Usuario) -> list[Despacho]:
+        result = await db.execute(
+            select(Despacho)
+            .options(selectinload(Despacho.detalles))
+            .order_by(Despacho.creado_en.desc())
+        )
+        return list(result.scalars().all())
 
     @staticmethod
     async def completar_despacho(
@@ -139,6 +156,15 @@ class DespachoService:
                 current_user
             )
             
+        from app.services.bitacora_service import BitacoraService
+        await BitacoraService.registrar_accion(
+            db=db,
+            usuario_id=current_user.id,
+            modulo="Despachos",
+            accion="COMPLETAR_DESPACHO",
+            detalles={"despacho_id": str(despacho_completo.id), "folio": despacho_completo.folio}
+        )
+
         await db.commit()
         
         result_final = await db.execute(

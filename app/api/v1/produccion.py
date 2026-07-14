@@ -35,6 +35,19 @@ async def obtener_recetas(
     return await ProduccionService.obtener_recetas(db)
 
 
+from app.api.v1.utils import paginate_response
+
+@router.get("/ordenes", response_model=dict)
+async def listar_ordenes(
+    page: int = 1,
+    size: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("almacenista", "administrador", "encargado_sucursal", "solo_lectura")),
+):
+    items = await ProduccionService.listar_ordenes(db)
+    return paginate_response([OrdenProduccionRead.model_validate(i).model_dump(mode="json") for i in items], page, size)
+
+
 @router.post("/ordenes", response_model=OrdenProduccionRead, status_code=status.HTTP_201_CREATED)
 async def crear_orden_produccion(
     data: OrdenProduccionCreate,
