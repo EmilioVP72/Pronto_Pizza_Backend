@@ -1,0 +1,112 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+from fastapi import HTTPException, status
+from uuid import UUID
+from datetime import datetime
+
+from app.models.requisiciones import Requisicion, RequisicionDetalle
+from app.models.organizacion import Usuario
+from app.schemas.requisiciones import RequisicionCreate
+
+class RequisicionService:
+
+    @staticmethod
+    async def listar(db: AsyncSession, current_user: Usuario) -> list[Requisicion]:
+        # Para el futuro: si es encargado_sucursal, filtrar por su sucursal_id
+        # if current_user.rol.nombre == "encargado_sucursal":
+        #    ...
+        result = await db.execute(select(Requisicion))
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def crear(
+        db: AsyncSession,
+        data: RequisicionCreate,
+        current_user: Usuario,
+    ) -> Requisicion:
+        # El folio real se genera por un trigger en BD. Asignamos un placeholder o None
+        requisicion = Requisicion(
+            sucursal_id=current_user.sucursal_id,
+            folio="", # El trigger `trg_folio_requisicion` llenará esto antes del INSERT
+            estatus="borrador",
+            creado_por_id=current_user.id,
+            fecha_requerida=data.fecha_requerida,
+            notas=data.notas
+        )
+        db.add(requisicion)
+        await db.flush() # Para obtener el ID de la requisición
+
+        for det in data.detalles:
+            detalle = RequisicionDetalle(
+                requisicion_id=requisicion.id,
+                producto_id=det.producto_id,
+                cantidad_solicitada=det.cantidad_solicitada,
+                notas=det.notas
+            )
+            db.add(detalle)
+        
+        await db.commit()
+        
+        result_req = await db.execute(
+            select(Requisicion)
+            .options(selectinload(Requisicion.detalles))
+            .where(Requisicion.id == requisicion.id)
+        )
+        return result_req.scalar_one()
+
+    @staticmethod
+    async def transicionar_estado(
+        db: AsyncSession,
+        requisicion_id: UUID,
+        nuevo_estatus: str,
+        current_user: Usuario
+    ) -> Requisicion:
+        result = await db.execute(
+            select(Requisicion)
+            .options(selectinload(Requisicion.detalles))
+            .where(Requisicion.id == requisicion_id)
+        )
+        requisicion = result.scalar_one_or_none()
+        if not requisicion:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requisición no encontrada")
+
+        estatus_actual = requisicion.estatus
+        rol = current_user.rol.nombre
+
+        # Validaciones de transición permitida
+        transiciones_validas = {
+            "borrador": {"enviada": ["encargado_sucursal", "almacenista", "administrador"]},
+            "enviada": {
+                "aprobada": ["almacenista", "administrador"],
+                "rechazada": ["almacenista", "administrador"]
+            },
+            "aprobada": {
+                "surtida": ["almacenista", "administrador"],
+                "rechazada": ["almacenista", "administrador"]
+            },
+            "surtida": {"cerrada": ["almacenista", "administrador"]}
+        }
+
+        if estatus_actual not in transiciones_validas or nuevo_estatus not in transiciones_validas[estatus_actual]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"No se puede transicionar de '{estatus_actual}' a '{nuevo_estatus}'")
+
+        roles_permitidos = transiciones_validas[estatus_actual][nuevo_estatus]
+        if rol not in roles_permitidos:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permisos para realizar esta acción")
+
+        requisicion.estatus = nuevo_estatus
+        
+        if nuevo_estatus == "aprobada":
+            from datetime import timezone
+            requisicion.aprobado_por_id = current_user.id
+            requisicion.fecha_aprobacion = datetime.now(timezone.utc)
+
+        await db.commit()
+        
+        result_req = await db.execute(
+            select(Requisicion)
+            .options(selectinload(Requisicion.detalles))
+            .where(Requisicion.id == requisicion.id)
+        )
+        return result_req.scalar_one()
