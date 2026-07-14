@@ -9,11 +9,27 @@ from app.schemas.organizacion import (
     EmpresaRead,
     SucursalRead,
     UsuarioRead,
-    RolRead
+    RolRead,
+    UsuarioCreate
 )
 from app.services.organizacion_service import OrganizacionService
 
 router = APIRouter(prefix="/organizacion", tags=["Organizacion"])
+
+@router.post("/usuarios", response_model=UsuarioRead, status_code=status.HTTP_201_CREATED)
+async def crear_usuario(
+    data: UsuarioCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(require_role("administrador")),
+):
+    return await OrganizacionService.crear_usuario(db, data)
+
+
+@router.get("/usuarios/me", response_model=UsuarioRead)
+async def obtener_usuario_actual(
+    current_user: Usuario = Depends(get_current_user)
+):
+    return current_user
 
 
 @router.get("/empresas", response_model=list[EmpresaRead])
