@@ -18,8 +18,9 @@ _jwks_client = None
 def get_jwks_client():
     global _jwks_client
     if _jwks_client is None:
-        jwks_url = f"{settings.supabase_url}/auth/v1/jwks"
-        _jwks_client = pyjwt.PyJWKClient(jwks_url, headers={"apiKey": settings.supabase_anon_key})
+        # Supabase exposes JWKS at /.well-known/jwks.json, NOT at /jwks
+        jwks_url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
+        _jwks_client = pyjwt.PyJWKClient(jwks_url, headers={"apikey": settings.supabase_anon_key})
     return _jwks_client
 
 
