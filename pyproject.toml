@@ -41,6 +41,7 @@ dependencies = [
     "typing-extensions==4.15.0",
     "typing-inspection==0.4.2",
     "uvicorn==0.49.0",
+    "supabase",
 ]
 
 [dependency-groups]
