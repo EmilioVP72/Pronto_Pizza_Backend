@@ -33,6 +33,11 @@ class InventarioService:
         await db.commit()
         await db.refresh(movimiento)
         
+        # Trigger de verificación de alertas de stock
+        sucursal_id_afectada = data.sucursal_origen_id or data.sucursal_destino_id
+        if sucursal_id_afectada:
+            await InventarioService.verificar_alertas_stock(db, data.producto_id, sucursal_id_afectada)
+        
         return movimiento
 
     @staticmethod
@@ -247,3 +252,48 @@ class InventarioService:
             }
             for r in rows if r.punto_reorden > 0 and r.cantidad_actual <= r.punto_reorden
         ]
+
+    @staticmethod
+    async def verificar_alertas_stock(db: AsyncSession, producto_id: UUID, sucursal_id: UUID):
+        from sqlalchemy import func
+        from app.models.catalogo import Producto, ProductoSucursal
+        from app.models.inventario import SaldoInventario
+        from app.models.notificaciones import Notificacion
+        from app.models.organizacion import Usuario, Rol
+        
+        # Fetch current saldo and parameters
+        query = select(
+            func.coalesce(func.sum(SaldoInventario.cantidad), 0).label("cantidad"),
+            func.coalesce(func.max(ProductoSucursal.punto_reorden), 0).label("punto_reorden"),
+            func.max(Producto.nombre).label("producto_nombre")
+        ).outerjoin(
+            ProductoSucursal, ProductoSucursal.producto_id == Producto.id
+        ).outerjoin(
+            SaldoInventario, SaldoInventario.producto_id == Producto.id
+        ).where(
+            Producto.id == producto_id,
+            SaldoInventario.sucursal_id == sucursal_id,
+            ProductoSucursal.sucursal_id == sucursal_id
+        ).group_by(Producto.id)
+
+        res = await db.execute(query)
+        row = res.first()
+        
+        if row and row.punto_reorden > 0 and row.cantidad <= row.punto_reorden:
+            # Verificar si ya existe una alerta reciente (últimas 24h) no leída para este producto y sucursal
+            # Para simplificar, creamos la alerta a los roles pertinentes
+            q_users = select(Usuario).join(Rol).where(
+                Usuario.sucursal_id == sucursal_id,
+                Rol.nombre.in_(["encargado_sucursal", "almacenista", "administrador", "comisariato"])
+            )
+            users_res = await db.execute(q_users)
+            usuarios = users_res.scalars().all()
+            
+            for u in usuarios:
+                notif = Notificacion(
+                    usuario_id=u.id,
+                    titulo="Alerta de Stock Mínimo",
+                    mensaje=f"El producto {row.producto_nombre} ha bajado de su punto de reorden. Stock actual: {row.cantidad}"
+                )
+                db.add(notif)
+            await db.commit()

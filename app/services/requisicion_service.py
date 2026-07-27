@@ -21,6 +21,15 @@ class RequisicionService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def obtener_por_id(db: AsyncSession, requisicion_id: UUID) -> Requisicion:
+        result = await db.execute(
+            select(Requisicion)
+            .options(selectinload(Requisicion.detalles))
+            .where(Requisicion.id == requisicion_id)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def crear(
         db: AsyncSession,
         data: RequisicionCreate,
@@ -81,6 +90,9 @@ class RequisicionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requisición no encontrada")
 
         estatus_actual = requisicion.estatus
+        if estatus_actual == nuevo_estatus:
+            return requisicion
+            
         rol = current_user.rol.nombre
 
         # Validaciones de transición permitida
@@ -120,7 +132,32 @@ class RequisicionService:
             detalles={"requisicion_id": str(requisicion.id), "folio": requisicion.folio}
         )
 
-        await db.commit()
+        if nuevo_estatus == "surtida":
+            from app.schemas.despachos import DespachoCreate, DespachoDetalleBase
+            from app.services.despacho_service import DespachoService
+            
+            detalles_despacho = []
+            for det in requisicion.detalles:
+                cantidad = det.cantidad_aprobada if det.cantidad_aprobada is not None else det.cantidad_solicitada
+                detalles_despacho.append(DespachoDetalleBase(
+                    producto_id=det.producto_id,
+                    lote_id=None,
+                    cantidad=cantidad,
+                    costo_unitario=None,
+                    notas="Autogenerado desde requisición"
+                ))
+                
+            despacho_data = DespachoCreate(
+                requisicion_id=requisicion.id,
+                sucursal_destino_id=requisicion.sucursal_id,
+                notas=f"Despacho automático para requisición {requisicion.folio}",
+                detalles=detalles_despacho
+            )
+            
+            # This calls commit internally
+            await DespachoService.crear(db, despacho_data, current_user)
+        else:
+            await db.commit()
         
         result_req = await db.execute(
             select(Requisicion)

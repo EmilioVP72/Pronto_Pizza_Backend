@@ -42,14 +42,17 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bypass fallido: admin no encontrado o no es administrador")
 
     try:
-        jwks_client = get_jwks_client()
-        signing_key = jwks_client.get_signing_key_from_jwt(token)
-        payload = pyjwt.decode(
-            token,
-            signing_key.key,
-            algorithms=["RS256", "ES256", "HS256"],
-            options={"verify_aud": False}
-        )
+        if settings.app_env == "testing":
+            payload = pyjwt.decode(token, settings.supabase_jwt_secret, algorithms=["HS256"], options={"verify_aud": False})
+        else:
+            jwks_client = get_jwks_client()
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = pyjwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256", "ES256", "HS256"],
+                options={"verify_aud": False}
+            )
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado")
     except pyjwt.PyJWTError as e:

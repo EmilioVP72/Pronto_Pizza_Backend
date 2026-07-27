@@ -98,6 +98,15 @@ class DespachoService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def obtener_por_id(db: AsyncSession, despacho_id: UUID) -> Despacho:
+        despacho = await db.execute(
+            select(Despacho)
+            .options(selectinload(Despacho.detalles))
+            .where(Despacho.id == despacho_id)
+        )
+        return despacho.scalar_one_or_none()
+
+    @staticmethod
     async def completar_despacho(
         db: AsyncSession,
         despacho_id: UUID,
@@ -162,7 +171,7 @@ class DespachoService:
             usuario_id=current_user.id,
             modulo="Despachos",
             accion="COMPLETAR_DESPACHO",
-            detalles={"despacho_id": str(despacho_completo.id), "folio": despacho_completo.folio}
+            detalles={"despacho_id": str(despacho_completo.id), "folio": despacho_completo.folio_documento}
         )
 
         await db.commit()
