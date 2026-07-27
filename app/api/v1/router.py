@@ -6,6 +6,8 @@ from app.api.v1.inventario import router as inventario_router
 from app.api.v1.produccion import router as produccion_router
 from app.api.v1.contabilidad import router as contabilidad_router
 from app.api.v1.bitacora import router as bitacora_router
+from app.api.v1.notificaciones import router as notificaciones_router
+from app.api.v1.kpis import router as kpis_router
 
 from app.api.v1.catalogo import router as catalogo_router
 
@@ -19,3 +21,5 @@ router.include_router(inventario_router)
 router.include_router(produccion_router)
 router.include_router(contabilidad_router)
 router.include_router(bitacora_router)
+router.include_router(notificaciones_router)
+router.include_router(kpis_router)

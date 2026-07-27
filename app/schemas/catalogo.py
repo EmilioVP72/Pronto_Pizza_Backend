@@ -27,6 +27,21 @@ class ProductoBase(BaseModel):
     precio_referencia: Decimal | None = None
     clave_contpaqi: str | None = None
 
+class ProductoCreate(ProductoBase):
+    pass
+
+class ProductoUpdate(BaseModel):
+    categoria_id: int | None = None
+    unidad_medida_id: int | None = None
+    unidad_compra_id: int | None = None
+    factor_conversion: Decimal | None = None
+    codigo_interno: str | None = None
+    nombre: str | None = None
+    descripcion: str | None = None
+    tipo_producto: str | None = None
+    precio_referencia: Decimal | None = None
+    clave_contpaqi: str | None = None
+
 class ProductoRead(ProductoBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
