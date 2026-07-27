@@ -34,6 +34,7 @@ dependencies = [
     "pytest-asyncio==1.4.0",
     "python-dotenv==1.2.2",
     "python-jose==3.5.0",
+    "PyJWT>=2.8.0",
     "rsa==4.9.1",
     "six==1.17.0",
     "sqlalchemy==2.0.50",
