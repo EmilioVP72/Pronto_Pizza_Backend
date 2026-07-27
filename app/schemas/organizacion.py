@@ -23,6 +23,18 @@ class SucursalBase(BaseModel):
     telefono: str | None = None
     es_comisariato: bool = False
 
+class SucursalCreate(SucursalBase):
+    pass
+
+class SucursalUpdate(BaseModel):
+    empresa_id: UUID | None = None
+    nombre: str | None = None
+    codigo: str | None = None
+    direccion: str | None = None
+    telefono: str | None = None
+    es_comisariato: bool | None = None
+    activo: bool | None = None
+
 class SucursalRead(SucursalBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -30,11 +42,20 @@ class SucursalRead(SucursalBase):
     creado_en: datetime
     actualizado_en: datetime
 
-class RolRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
+class RolBase(BaseModel):
     nombre: str
     descripcion: str | None = None
+
+class RolCreate(RolBase):
+    pass
+
+class RolUpdate(BaseModel):
+    nombre: str | None = None
+    descripcion: str | None = None
+
+class RolRead(RolBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
 
 class UsuarioBase(BaseModel):
     sucursal_id: UUID

@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.models.organizacion import Empresa, Sucursal, Rol, Usuario
-from app.schemas.organizacion import UsuarioCreate, UsuarioUpdate
+from app.schemas.organizacion import UsuarioCreate, UsuarioUpdate, SucursalCreate, SucursalUpdate, RolCreate, RolUpdate
 from fastapi import HTTPException, status
 from supabase import create_client, Client
 from app.core.config import settings
@@ -21,9 +21,85 @@ class OrganizacionService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def crear_sucursal(db: AsyncSession, data: SucursalCreate) -> Sucursal:
+        nueva_sucursal = Sucursal(**data.model_dump())
+        db.add(nueva_sucursal)
+        await db.commit()
+        await db.refresh(nueva_sucursal)
+        return nueva_sucursal
+
+    @staticmethod
+    async def actualizar_sucursal(db: AsyncSession, sucursal_id: uuid.UUID, data: SucursalUpdate) -> Sucursal:
+        result = await db.execute(select(Sucursal).where(Sucursal.id == sucursal_id))
+        sucursal = result.scalar_one_or_none()
+        if not sucursal:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal no encontrada")
+            
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(sucursal, key, value)
+            
+        await db.commit()
+        await db.refresh(sucursal)
+        return sucursal
+
+    @staticmethod
+    async def eliminar_sucursal(db: AsyncSession, sucursal_id: uuid.UUID):
+        result = await db.execute(select(Sucursal).where(Sucursal.id == sucursal_id))
+        sucursal = result.scalar_one_or_none()
+        if not sucursal:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sucursal no encontrada")
+            
+        sucursal.activo = False
+        await db.commit()
+        return {"detail": "Sucursal eliminada (soft delete)"}
+
+    @staticmethod
     async def listar_roles(db: AsyncSession) -> list[Rol]:
         result = await db.execute(select(Rol))
         return list(result.scalars().all())
+
+    @staticmethod
+    async def crear_rol(db: AsyncSession, data: RolCreate) -> Rol:
+        nuevo_rol = Rol(**data.model_dump())
+        db.add(nuevo_rol)
+        await db.commit()
+        await db.refresh(nuevo_rol)
+        return nuevo_rol
+
+    @staticmethod
+    async def actualizar_rol(db: AsyncSession, rol_id: int, data: RolUpdate) -> Rol:
+        result = await db.execute(select(Rol).where(Rol.id == rol_id))
+        rol = result.scalar_one_or_none()
+        if not rol:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rol no encontrado")
+            
+        CORE_ROLES = ["administrador", "encargado_sucursal", "almacenista"]
+        if rol.nombre in CORE_ROLES and data.nombre and data.nombre != rol.nombre:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se puede cambiar el nombre de un rol base del sistema")
+            
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(rol, key, value)
+            
+        await db.commit()
+        await db.refresh(rol)
+        return rol
+
+    @staticmethod
+    async def eliminar_rol(db: AsyncSession, rol_id: int):
+        result = await db.execute(select(Rol).where(Rol.id == rol_id))
+        rol = result.scalar_one_or_none()
+        if not rol:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rol no encontrado")
+            
+        CORE_ROLES = ["administrador", "encargado_sucursal", "almacenista"]
+        if rol.nombre in CORE_ROLES:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se puede eliminar un rol base del sistema")
+            
+        await db.delete(rol)
+        await db.commit()
+        return {"detail": "Rol eliminado"}
 
     @staticmethod
     async def listar_usuarios(db: AsyncSession) -> list[Usuario]:
