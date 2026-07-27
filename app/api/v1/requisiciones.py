@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
@@ -29,6 +30,37 @@ async def crear_requisicion(
     current_user: Usuario = Depends(require_role("encargado_sucursal", "almacenista", "administrador")),
 ):
     return await RequisicionService.crear(db, data, current_user)
+
+@router.get("/{requisicion_id}", response_model=RequisicionRead)
+async def obtener_requisicion(
+    requisicion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    requisicion = await RequisicionService.obtener_por_id(db, requisicion_id)
+    if not requisicion:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requisición no encontrada")
+    return requisicion
+
+@router.get("/{requisicion_id}/pdf")
+async def descargar_pdf_requisicion(
+    requisicion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    requisicion = await RequisicionService.obtener_por_id(db, requisicion_id)
+    if not requisicion:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requisición no encontrada")
+        
+    from app.services.pdf_service import PDFService
+    pdf_buffer = PDFService.generar_pdf_requisicion(requisicion)
+    
+    filename = f"Requisicion_{requisicion.folio or requisicion.id}.pdf"
+    return StreamingResponse(
+        pdf_buffer, 
+        media_type="application/pdf", 
+        headers={"Content-Disposition": f"inline; filename={filename}"}
+    )
 
 @router.patch("/{requisicion_id}/enviar", response_model=RequisicionRead)
 async def enviar_requisicion(

@@ -4,7 +4,8 @@ class Settings(BaseSettings):
     database_url: str
     supabase_url: str
     supabase_anon_key: str
-    supabase_jwt_secret: str
+    supabase_service_role_key: str | None = None
+    supabase_jwt_secret: str | None = None  # No longer needed, we use JWKS
     app_env: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     log_level: str = "INFO"

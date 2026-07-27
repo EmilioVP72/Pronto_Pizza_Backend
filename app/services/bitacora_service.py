@@ -15,7 +15,9 @@ class BitacoraService:
         detalles: dict | None = None,
         ip_address: str | None = None
     ) -> BitacoraAccion:
-        detalles_str = json.dumps(detalles) if detalles else None
+        from fastapi.encoders import jsonable_encoder
+        detalles_encoded = jsonable_encoder(detalles) if detalles else None
+        detalles_str = json.dumps(detalles_encoded) if detalles_encoded else None
         
         nueva_accion = BitacoraAccion(
             usuario_id=usuario_id,

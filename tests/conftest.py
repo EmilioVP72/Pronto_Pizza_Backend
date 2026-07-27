@@ -13,6 +13,7 @@ from app.models.organizacion import Empresa, Sucursal, Rol, Usuario
 
 # Base de datos en memoria para pruebas
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+settings.app_env = "testing"
 
 engine_test = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestingSessionLocal = async_sessionmaker(
