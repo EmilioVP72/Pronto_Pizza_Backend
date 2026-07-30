@@ -20,13 +20,13 @@ class KpiService:
         ).outerjoin(
             SaldoInventario, SaldoInventario.sucursal_id == Sucursal.id
         ).where(
-            Sucursal.es_matriz == False # O mostrar todas
+            Sucursal.es_comisariato == False # O mostrar todas
         ).group_by(Sucursal.id)
         
         res = await db.execute(query)
         rows = res.all()
-        # Mock calculation of value: assuming avg cost of 25 MXN per unit
-        return [{"sucursal": r.sucursal_nombre, "valor": float(r.cantidad_total) * 25.0} for r in rows]
+        # Retornamos el volumen (cantidad total de artículos) en lugar de un valor monetario ficticio.
+        return [{"sucursal": r.sucursal_nombre, "valor": float(r.cantidad_total)} for r in rows]
 
     @staticmethod
     async def obtener_tiempos_sla(db: AsyncSession):

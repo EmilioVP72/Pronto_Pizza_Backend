@@ -19,7 +19,7 @@ async def obtener_dashboard_kpis(
     rotacion = await KpiService.obtener_rotacion(db)
     
     return {
-        "valor_inventario_por_sucursal": valor_inventario,
+        "volumen_inventario_por_sucursal": valor_inventario,
         "sla_procesamiento": sla,
         "rotacion_top_5": rotacion
     }
